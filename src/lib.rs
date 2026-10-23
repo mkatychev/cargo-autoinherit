@@ -564,9 +564,9 @@ fn dep2shared_dep(dep: &Dependency) -> SourceType {
             if d.registry.is_some() || d.registry_index.is_some() {
                 return SourceType::MustBeSkipped;
             }
-            if let Some(_path) = d.path.as_ref() {
+            if let Some(path) = d.path.as_ref() {
                 source = Some(DependencySource::Path {
-                    path: d.path.as_ref().unwrap().to_owned(),
+                    path: path.to_owned(),
                     version: d.version.as_ref().map(|v| {
                         VersionReq::parse(v).expect("Failed to parse version requirement")
                     }),
