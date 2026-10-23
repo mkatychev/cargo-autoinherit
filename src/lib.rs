@@ -301,7 +301,7 @@ pub fn auto_inherit(conf: AutoInheritConf) -> Result<(), anyhow::Error> {
             );
         }
         if let Some(field) = &conf.package {
-            if inherit_package_field(&mut manifest_toml, field) {
+            if inherit_package_field(&mut manifest_toml, field)? {
                 was_modified = true;
             }
         }
@@ -329,10 +329,18 @@ impl Default for Action {
 }
 
 // Rewrites `package.<FIELD>` in a member manifest as a workspace inherited value.
-fn inherit_package_field(manifest_toml: &mut toml_edit::DocumentMut, field: &str) -> bool {
-    let package = manifest_toml["package"]
-        .as_table_mut()
-        .expect("Failed to find `[package]` table in member manifest.");
+fn inherit_package_field(
+    manifest_toml: &mut toml_edit::DocumentMut,
+    field: &str,
+) -> Result<bool, anyhow::Error> {
+    let Some(package) = manifest_toml
+        .get_mut("package")
+        .and_then(|t| t.as_table_mut())
+    else {
+        return Err(anyhow!(
+            "Failed to find `[package]` table in member manifest."
+        ));
+    };
 
     // Already inherited? Nothing to do.
     let already_inherited = package
@@ -342,7 +350,7 @@ fn inherit_package_field(manifest_toml: &mut toml_edit::DocumentMut, field: &str
         .and_then(|workspace| workspace.as_bool())
         == Some(true);
     if already_inherited {
-        return false;
+        return Ok(false);
     }
 
     let mut inherited = toml_edit::Table::new();
@@ -350,7 +358,7 @@ fn inherit_package_field(manifest_toml: &mut toml_edit::DocumentMut, field: &str
     inherited.set_dotted(true);
 
     insert_preserving_decor(package, field, toml_edit::Item::Table(inherited));
-    true
+    Ok(true)
 }
 
 fn inherit_deps(
