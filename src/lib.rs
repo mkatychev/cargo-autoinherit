@@ -18,6 +18,9 @@ pub struct AutoInheritConf {
     /// Package name(s) of workspace member(s) to exclude.
     #[arg(short, long)]
     exclude_members: Vec<String>,
+    /// Field name to inherit from workspace package table.
+    #[arg(long, value_name = "PACKAGE_FIELD")]
+    pub package: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -297,6 +300,11 @@ pub fn auto_inherit(conf: AutoInheritConf) -> Result<(), anyhow::Error> {
                 conf.prefer_simple_dotted,
             );
         }
+        if let Some(field) = &conf.package {
+            if inherit_package_field(&mut manifest_toml, field) {
+                was_modified = true;
+            }
+        }
         if was_modified {
             fs_err::write(
                 package.manifest_path().as_std_path(),
@@ -318,6 +326,31 @@ impl Default for Action {
     fn default() -> Self {
         Action::TryInherit(MinimalVersionSet::default())
     }
+}
+
+// Rewrites `package.<FIELD>` in a member manifest as a workspace inherited value.
+fn inherit_package_field(manifest_toml: &mut toml_edit::DocumentMut, field: &str) -> bool {
+    let package = manifest_toml["package"]
+        .as_table_mut()
+        .expect("Failed to find `[package]` table in member manifest.");
+
+    // Already inherited? Nothing to do.
+    let already_inherited = package
+        .get(field)
+        .and_then(|item| item.as_table())
+        .and_then(|table| table.get("workspace"))
+        .and_then(|workspace| workspace.as_bool())
+        == Some(true);
+    if already_inherited {
+        return false;
+    }
+
+    let mut inherited = toml_edit::Table::new();
+    inherited.insert("workspace", toml_edit::value(true));
+    inherited.set_dotted(true);
+
+    insert_preserving_decor(package, field, toml_edit::Item::Table(inherited));
+    true
 }
 
 fn inherit_deps(
