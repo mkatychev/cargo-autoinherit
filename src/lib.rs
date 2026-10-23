@@ -1,5 +1,5 @@
 use crate::dedup::MinimalVersionSet;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use cargo_manifest::{Dependency, DependencyDetail, DepsSet, Manifest, Workspace};
 use guppy::VersionReq;
 use std::collections::{BTreeMap, BTreeSet};
@@ -357,9 +357,7 @@ fn inherit_package_field(
         .get_mut("package")
         .and_then(|t| t.as_table_mut())
     else {
-        return Err(anyhow!(
-            "Failed to find `[package]` table in member manifest."
-        ));
+        bail!("Failed to find `[package]` table in member manifest.");
     };
 
     // Already inherited? Nothing to do.
