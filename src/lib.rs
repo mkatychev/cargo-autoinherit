@@ -151,6 +151,31 @@ pub fn auto_inherit(conf: AutoInheritConf) -> Result<(), anyhow::Error> {
             .chain(autoinherit_metadata.exclude_members),
     );
 
+    // `--package` is mutually exclusive with dependency inheritance:
+    // it only rewrites `[package]` fields and can work for workspaces that depend on
+    // private registries.
+    if let Some(field) = conf.package.as_deref() {
+        for member_id in graph.workspace().member_ids() {
+            let package = graph.metadata(member_id)?;
+            if excluded_members.contains(package.name()) {
+                continue;
+            }
+
+            let manifest_path = package.manifest_path().as_std_path();
+            let contents =
+                fs_err::read_to_string(manifest_path).context("Failed to read member manifest")?;
+            let mut manifest_toml: toml_edit::DocumentMut = contents
+                .parse()
+                .context("Failed to parse member manifest")?;
+
+            if inherit_package_field(&mut manifest_toml, field)? {
+                fs_err::write(manifest_path, manifest_toml.to_string())
+                    .context("Failed to write manifest")?;
+            }
+        }
+        return Ok(());
+    }
+
     let mut package_name2specs: BTreeMap<String, Action> = BTreeMap::new();
     if let Some(deps) = &mut workspace.dependencies {
         rewrite_dep_paths_as_absolute(deps.values_mut(), workspace_root);
@@ -299,11 +324,6 @@ pub fn auto_inherit(conf: AutoInheritConf) -> Result<(), anyhow::Error> {
                 &mut was_modified,
                 conf.prefer_simple_dotted,
             );
-        }
-        if let Some(field) = &conf.package {
-            if inherit_package_field(&mut manifest_toml, field)? {
-                was_modified = true;
-            }
         }
         if was_modified {
             fs_err::write(
