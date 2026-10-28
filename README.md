@@ -43,7 +43,7 @@ It collects all the dependencies in your workspace, determines which ones can be
 the `[workspace.dependencies]` section of the root `Cargo.toml`. It also takes care of updating the members'
 `Cargo.toml` files, setting the correct `features` field for each package.
 
-To exclude workspace members from the autoinherit process, you can either pass their packgage names as an
+To exclude workspace members from the autoinherit process, you can either pass their package names as an
 option like so:
 
 ```bash

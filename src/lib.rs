@@ -20,7 +20,7 @@ pub struct AutoInheritConf {
     exclude_members: Vec<String>,
     /// Field name to inherit from workspace package table.
     #[arg(long, value_name = "PACKAGE_FIELD")]
-    pub package: Option<String>,
+    pub package_field: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -31,7 +31,7 @@ struct AutoInheritMetadata {
 impl AutoInheritMetadata {
     fn from_workspace(workspace: &Workspace<toml::Table>) -> Result<Self, anyhow::Error> {
         fn error() -> anyhow::Error {
-            anyhow!("Excpected value of `exclude` in `workspace.metadata.cargo-autoinherit` to be an array of strings")
+            anyhow!("Expected value of `exclude` in `workspace.metadata.cargo-autoinherit` to be an array of strings")
         }
 
         let Some(exclude) = workspace
@@ -154,7 +154,7 @@ pub fn auto_inherit(conf: AutoInheritConf) -> Result<(), anyhow::Error> {
     // `--package` is mutually exclusive with dependency inheritance:
     // it only rewrites `[package]` fields and can work for workspaces that depend on
     // private registries.
-    if let Some(field) = conf.package.as_deref() {
+    if let Some(field) = conf.package_field.as_deref() {
         for member_id in graph.workspace().member_ids() {
             let package = graph.metadata(member_id)?;
             if excluded_members.contains(package.name()) {
